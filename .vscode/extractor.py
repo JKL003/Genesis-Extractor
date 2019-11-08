@@ -76,7 +76,7 @@ def extractMainPage(robo):
         print(str(courses[i].currentMPGrade) + " in " + courses[i].courseName 
         + " with " + courses[i].teacherName + " during " + courses[i].period)
 
-    
+    return courseInfo
    
 
 if __name__ == '__main__':
