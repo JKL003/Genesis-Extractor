@@ -1,14 +1,26 @@
-#import re
+import course
+import assignment
+import datetime
+import re
 import string
 
 
 from robobrowser import RoboBrowser
 from bs4 import BeautifulSoup
 
-def main():
+# Global variables
+studentName = ""
+courses = list(map(course.Course,[]))
 
-    #Acesses Genesis
-    br = RoboBrowser()
+# Body
+def main():
+    br = RoboBrowser(parser='html.parser')
+
+    mainpageGrades = extractMainPage(br)
+
+
+def extractMainPage(robo):
+    br = robo
     br.open("https://parents.chclc.org/genesis/sis/view?gohome=true")
     form = br.get_form()
     form["j_username"] = "3010476@chclc.org"
@@ -18,37 +30,56 @@ def main():
     #Converts the HTML of the grade page into a string
     src = str(br.parsed())
 
-    #Removes all forms of whitespace
-    src = src.translate({ord(c): None for c in string.whitespace})
-
-    #Removes all Javascript
+    #Removes initial Javascript
     src = src[src.find('<!-- Start of Header-->')+len('<!-- Start of Header-->'): len(src)]
 
     #Removes all HTML tags
-    soup = BeautifulSoup(src)
+    soup = BeautifulSoup(src,"lxml")
     src = ''.join(soup.findAll(text=True))
-
     
+    #Removes all tabs and newlines
+    src = " ".join(src.split())
+    studentName = src[src.index("Select Student:")+16:src.index("Weekly Summary")-1]    
 
+    #Cuts the string into the important parts
     notDone = True
-    i = src.find('%')-6
+    i = src.find('Fri')+3 #Consistent and close reference point
     while(notDone):
-        i -= 1
-        if(ord(src[i])>=48 and ord(src[i])<=57):
+        i += 1
+        if(ord(src[i])>=57):
             notDone = False
+    src = src[i+2:src.rfind('%')+1]
     
-    src = src[i+1:src.rfind('%')+1]
+    #Parses the text
+    courseInfo = src.split('%')
+    courseInfo.pop()
+    for i in range(len(courseInfo)):
+        courseInfo[i] = courseInfo[i].split("Email:")
+        if(i != 0):
+            courseInfo[i][0] = courseInfo[i][0][11:len(courseInfo[i][0])]
+    
+        
+        # Separate info
+        cInfo = courseInfo[i][0]
+        cName = cInfo[0:cInfo[0:cInfo.index(",")].rfind(" ")]
+        cTeacher = cInfo[cInfo[0:cInfo.index(",")].rfind(" ")+1:len(cInfo)-1]
 
-    print(src)
-    #print(src[src.find(start)+len(start):src.find(end)+2])
+        # Create course
+        c = course.Course(cName,cTeacher,"P")
+        # Add assignments from List Assignments tab (click on link) 
+        # Example: c.addAssignment("a1",10,10,assignment.Category.MajorAssessment,datetime.datetime.today().date)
+        courses.append(c)
+        
+    # Test by printing info
+    print("Student: " + studentName)
+    for i in range(len(courses)):
+        print(str(courses[i].currentMPGrade) + " in " + courses[i].courseName 
+        + " with " + courses[i].teacherName + " during " + courses[i].period)
 
-
-
-    #print(re.search('%s(.*)%s' % (start, end), src))
-
-    #result = re.search('%s(.*)%s' % (start, end), src).group(1)
-    #print(result)
-
+    
+   
 
 if __name__ == '__main__':
     main()
+
+
